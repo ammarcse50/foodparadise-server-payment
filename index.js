@@ -5,7 +5,11 @@ const app = express();
 const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 5000;
 app.use(express.json());
-app.use(cors());
+app.use(
+  cors({
+    origin: ["http://localhost:5173"],
+  })
+);
 
 app.get("/", async (req, res) => {
   res.send("Working Service");
@@ -54,32 +58,6 @@ async function run() {
     const cartCollection = client.db("foodparadiseDB").collection("cart");
     const userCollection = client.db("foodparadiseDB").collection("users");
 
-    // meu related api
-    app.post("/menu", async (req, res) => {
-      const item = req.body;
-
-      const result = await menuCollection.insertOne(item);
-
-      res.send(result);
-    });
-    app.get("/menu", async (req, res) => {
-      const result = await menuCollection.find().toArray();
-      res.send(result);
-    });
-    app.get("/reviews", async (req, res) => {
-      const result = await reviewCollection.find().toArray();
-      res.send(result);
-    });
-
-    // jwt related api
-
-    app.post("/jwt", async (req, res) => {
-      const user = req.body;
-      const token = jwt.sign(user, process.env.Access_Token_Secret, {
-        expiresIn: "1h",
-      });
-      res.send({ token });
-    });
     // middlewares
 
     const verifyToken = (req, res, next) => {
@@ -109,13 +87,39 @@ async function run() {
       }
       next();
     };
+    // meu related api
+    app.post("/menu", verifyToken, verifyAdmin, async (req, res) => {
+      const item = req.body;
+
+      const result = await menuCollection.insertOne(item);
+
+      res.send(result);
+    });
+    app.get("/menu", async (req, res) => {
+      const result = await menuCollection.find().toArray();
+      res.send(result);
+    });
+    app.get("/reviews", async (req, res) => {
+      const result = await reviewCollection.find().toArray();
+      res.send(result);
+    });
+
+    // jwt related api
+
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.Access_Token_Secret, {
+        expiresIn: "1h",
+      });
+      res.send({ token });
+    });
     // user related api
 
-    app.get("users/admin/:email", verifyToken, async (req, res) => {
+    app.get("/users/admin/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
 
       if (email !== req.decoded.email) {
-        return res.status(403).send({ message: "unauthorized" });
+        return res.status(403).send({ message: "unauthorized access" });
       }
 
       const query = { email: email };
@@ -124,7 +128,7 @@ async function run() {
       let admin = false;
 
       if (user) {
-        admin = user.role === "admin";
+        admin = user?.role === "admin";
       }
 
       res.send({ admin });
@@ -171,7 +175,7 @@ async function run() {
     });
 
     //cart collection
-    app.get("/carts", async (req, res) => {
+    app.get("/carts", verifyToken, async (req, res) => {
       const email = req.query.email;
       const query = {
         email: email,
