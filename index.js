@@ -60,6 +60,9 @@ async function run() {
 
     const cartCollection = client.db("foodparadiseDB").collection("cart");
     const userCollection = client.db("foodparadiseDB").collection("users");
+    const paymentCollection = client
+      .db("foodparadiseDB")
+      .collection("payments");
 
     // middlewares
 
@@ -226,14 +229,34 @@ async function run() {
         amount: amount,
 
         currency: "usd",
-        payment_method_types: ["card"]
+        payment_method_types: ["card"],
       });
 
       res.status(200).send({
         clientSecret: paymentIntent.client_secret,
       });
     });
+    // payment related api
 
+    app.post("/payments", async (req, res) => {
+      const payment = req.body;
+      const paymentResult = await paymentCollection.insertOne(payment);
+
+      console.log("payment info", payment);
+
+      // carefully delete each item fromm cart
+
+      const query = {
+        _id: {
+          $in: payment.cartIds.map(id => new ObjectId(id))
+        }
+      }
+
+      const deleteResult = await cartCollection.deleteMany(query);
+
+
+      res.send({paymentResult,deleteResult});
+    });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
