@@ -9,7 +9,7 @@ const stripe = require("stripe")(process.env.STRIPE_KEY);
 app.use(express.json());
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: ["https://foodparadise-9f663.web.app"],
   })
 );
 
